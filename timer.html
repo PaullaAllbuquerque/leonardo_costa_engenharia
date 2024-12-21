@@ -1,0 +1,205 @@
+<html><head><base href="." />
+<meta charset="UTF-8">
+<title>Sistema de Registro de Horas</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+
+<style>
+.timer {
+    font-family: 'Courier New', monospace;
+    font-size: 3rem;
+    font-weight: bold;
+}
+
+.pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: .5;
+    }
+}
+</style>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl p-8">
+            <h1 class="text-2xl font-bold text-center mb-6">Registro de Horas Trabalhadas</h1>
+            
+            <div class="timer text-center mb-8" id="timer">00:00:00</div>
+            
+            <div class="flex justify-center space-x-4">
+                <button id="startBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+                    Iniciar
+                </button>
+                <button id="stopBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded hidden">
+                    Parar
+                </button>
+            </div>
+
+            <div class="mt-8">
+                <h2 class="text-lg font-semibold mb-4">Registros do Dia</h2>
+                <div id="records" class="space-y-2">
+                    <!-- Registros serão inseridos aqui -->
+                </div>
+            </div>
+
+            <div class="mt-8">
+                <p class="text-sm text-gray-600">
+                    Para conectar com o Google Sheets:
+                    <ol class="list-decimal ml-6 mt-2">
+                        <li>Configure uma planilha no Google Sheets</li>
+                        <li>Configure o Google Apps Script</li>
+                        <li>Autorize o acesso à planilha</li>
+                    </ol>
+                </p>
+            </div>
+        </div>
+    </div>
+
+<script>
+let startTime = null;
+let timerInterval = null;
+let isRunning = false;
+
+const timerElement = document.getElementById('timer');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const recordsDiv = document.getElementById('records');
+
+function updateTimer() {
+    if (!startTime) return;
+    
+    const now = new Date();
+    const diff = now - startTime;
+    const duration = moment.duration(diff);
+    
+    timerElement.textContent = [
+        duration.hours().toString().padStart(2, '0'),
+        duration.minutes().toString().padStart(2, '0'),
+        duration.seconds().toString().padStart(2, '0')
+    ].join(':');
+}
+
+function startTimer() {
+    if (isRunning) return;
+    
+    startTime = new Date();
+    isRunning = true;
+    timerElement.classList.add('pulse');
+    
+    startBtn.classList.add('hidden');
+    stopBtn.classList.remove('hidden');
+    
+    timerInterval = setInterval(updateTimer, 1000);
+    
+    // Registrar início
+    const record = document.createElement('div');
+    record.className = 'p-2 bg-green-100 rounded';
+    record.textContent = `Início: ${moment(startTime).format('HH:mm:ss')}`;
+    recordsDiv.appendChild(record);
+    
+    // Aqui você pode adicionar a integração com Google Sheets
+    sendToGoogleSheets('start', startTime);
+}
+
+function stopTimer() {
+    if (!isRunning) return;
+    
+    const endTime = new Date();
+    isRunning = false;
+    timerElement.classList.remove('pulse');
+    
+    startBtn.classList.remove('hidden');
+    stopBtn.classList.add('hidden');
+    
+    clearInterval(timerInterval);
+    
+    // Registrar fim
+    const record = document.createElement('div');
+    record.className = 'p-2 bg-red-100 rounded';
+    record.textContent = `Fim: ${moment(endTime).format('HH:mm:ss')}`;
+    recordsDiv.appendChild(record);
+    
+    // Calcular duração
+    const duration = moment.duration(endTime - startTime);
+    const durationRecord = document.createElement('div');
+    durationRecord.className = 'p-2 bg-blue-100 rounded';
+    durationRecord.textContent = `Duração: ${Math.floor(duration.asHours())}h ${duration.minutes()}m`;
+    recordsDiv.appendChild(durationRecord);
+    
+    // Aqui você pode adicionar a integração com Google Sheets
+    sendToGoogleSheets('end', endTime);
+    
+    startTime = null;
+    timerElement.textContent = '00:00:00';
+}
+
+function sendToGoogleSheets(type, timestamp) {
+    // Esta é uma função modelo para a integração com Google Sheets
+    // Você precisará implementar a lógica real usando Google Apps Script
+    console.log(`Enviando ${type} : ${timestamp} para Google Sheets`);
+    
+    // Exemplo de como seria a integração:
+    /*
+    fetch('URL_DO_SEU_GOOGLE_APPS_SCRIPT', {
+        method: 'POST',
+        body: JSON.stringify({
+            type: type,
+            timestamp: timestamp,
+            date: moment(timestamp).format('YYYY-MM-DD'),
+            time: moment(timestamp).format('HH:mm:ss')
+        })
+    });
+    */
+}
+
+startBtn.addEventListener('click', startTimer);
+stopBtn.addEventListener('click', stopTimer);
+
+// Verificar se há um timer em andamento ao recarregar a página
+window.addEventListener('load', () => {
+    const savedStartTime = localStorage.getItem('startTime');
+    if (savedStartTime) {
+        startTime = new Date(parseInt(savedStartTime));
+        startTimer();
+    }
+});
+
+// Salvar o estado do timer quando a página for fechada
+window.addEventListener('beforeunload', () => {
+    if (isRunning) {
+        localStorage.setItem('startTime', startTime.getTime());
+    } else {
+        localStorage.removeItem('startTime');
+    }
+});
+</script>
+
+<!-- Instruções para integração com Google Sheets -->
+<div class="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg hidden" id="instructions">
+    <h3 class="font-bold mb-2">Como integrar com Google Sheets:</h3>
+    <pre class="text-xs bg-gray-100 p-2 rounded">
+// Cole este código no Google Apps Script:
+
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  
+  sheet.appendRow([
+    data.date,
+    data.time,
+    data.type
+  ]);
+  
+  return ContentService.createTextOutput('Success');
+}
+    </pre>
+</div>
+
+</body></html>
